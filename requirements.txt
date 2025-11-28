@@ -1,0 +1,5 @@
+ipykernel==4.10.1
+ipython==5.9.0
+ipython-genutils==0.2.0
+pygame==1.9.6
+opencv-python==4.2.0.32

@@ -1,0 +1,578 @@
+#!/usr/bin/env python3.11
+# coding=utf-8
+
+# cosas que solucionar:
+# - la cantidad de imagenes es menor a la requerida, se necesitan 60 por cada condición por cada bloque, lo que hace un total de 120 imagenes de cada tipo, pero solo tenemos 85 happy y 56 sad
+
+"""
+tested in Python 3.11
+"""
+import csv, pygame, sys, os, serial
+from pygame.locals import FULLSCREEN, USEREVENT, KEYUP, K_SPACE, K_RETURN, K_ESCAPE, QUIT, Color, K_p, K_v, K_n
+from os.path import isfile, join
+from random import randint, shuffle
+from time import gmtime, strftime
+
+from pathlib import Path
+
+script_path = Path(__file__).parent.resolve()
+
+debug_mode = True # Modo de depuración (True/False)
+
+class TextRectException(Exception):
+    def __init__(self, message=None):
+        self.message = message
+
+    def __str__(self):
+        return self.message
+
+# Configurations:
+FullScreenShow = True  # Pantalla completa automáticamente al iniciar el experimento
+test_name = "Stroop Task"
+date_name = strftime("%Y-%m-%d_%H-%M-%S", gmtime())
+
+# Image Loading
+happy_images_list = [script_path/"media"/"images"/"Happy"/ f for f in os.listdir(
+    script_path/"media"/"images"/"Happy") if isfile(join(script_path/"media"/"images"/"Happy", f))]
+sad_images_list = [script_path/"media"/"images"/"Sad"/ f for f in os.listdir(
+    script_path/"media"/"images"/"Sad") if isfile(join(script_path/"media"/"images"/"Sad", f))]
+
+shuffle(happy_images_list)
+shuffle(sad_images_list)
+
+first_experiment_block = [(img, "Happy") for img in happy_images_list[:60]] + [(img, "Sad") for img in happy_images_list[:60]] + \
+                         [(img, "Sad") for img in sad_images_list[:60]] + [(img, "Happy") for img in sad_images_list[:60]]
+
+shuffle(first_experiment_block)
+
+second_experiment_block = [(img, "Happy") for img in happy_images_list[:60]] + [(img, "Sad") for img in happy_images_list[:60]] + \
+                          [(img, "Sad") for img in sad_images_list[:60]] + [(img, "Happy") for img in sad_images_list[:60]]
+
+shuffle(second_experiment_block)
+
+text_convertor = {"Happy": "Feliz", "Sad": "Triste"}
+
+base_size = 350
+
+# Port address and triggers
+lpt_address = 0xD100
+trigger_latency = 5
+start_trigger = 254
+stop_trigger = 255
+
+# Experiment Trigger list
+# 1-240: ID images, Ok
+# 241-243: Block ID's, Ok
+# 244: fixation, Ok
+# 250: Correct answer
+# 251: Incorrect answer
+
+# 254: Start experiment
+# 255: Stop experiment
+
+# Onscreen instructions
+def select_slide(slide_name, variables=None):
+
+    if variables is None:
+        variables = {"block_number": 0, "practice": True}
+
+    basic_slides = {
+        'welcome': [
+            u"Bienvenido/a, a este experimento!!!",
+            " ",
+            u"Se te indicará paso a paso que hacer."
+        ],
+        'Practice_1': [
+            u"Empezaremos con una práctica para familiarizarnos con la tarea.",
+            " ",
+            u"Luego de ver un rostro deberás categorizar su expresión emocional lo más rápido y preciso posible.",
+            " ",
+        ],
+        'Practice_2': [
+            u"Ahora haremos una segunda práctica.",
+            " ",
+            u"Recuerda que luego de ver un rostro deberás categorizar su expresión emocional lo más rápido y preciso posible.",
+            " ",
+        ],
+        'intro_block': [
+            u"Ahora comenzaremos con el experimento.",
+            " ",
+            u"Se le presentará una secuencia de caras con diferentes expresiones emocionales.",
+            u"Su tarea es categorizar la emoción de cada cara lo más rápido y preciso posible.",
+            " ",
+        ],
+        'Break': [
+            u"Puedes tomar un descanso.",
+            " ",
+            u"Para el siguiente bloque tendrás que responder con la mano contraria.",
+            " ",
+            u"Cuando te sientas listo para continuar presiona Espacio."
+        ],
+        'farewell': [
+            u"El experimento ha terminado.",
+            "",
+            u"Muchas gracias por su colaboración!!"
+        ]
+    }
+
+    return (basic_slides[slide_name])
+
+
+# EEG Functions
+def init_lpt(address):
+    """Creates and tests a parallell port"""
+    try:
+        from ctypes import windll
+        global io
+        io = windll.dlportio  # requires dlportio.dll !!!
+        print('Parallel port opened')
+    except:
+        pass
+        print("Oops!", sys.exc_info(), "occurred.")
+        print('The parallel port couldn\'t be opened')
+    try:
+        io.DlPortWritePortUchar(address, 0)
+        print('Parallel port set to zero')
+    except:
+        pass
+        print('Failed to send initial zero trigger!')
+
+
+def send_trigger(trigger, address, latency):
+    """Sends a trigger to the parallell port"""
+    try:
+        io.DlPortWritePortUchar(address, trigger)  # Send trigger
+        pygame.time.delay(latency)  # Keep trigger pulse for some ms
+        io.DlPortWritePortUchar(address, 0)  # Get back to zero after some ms
+        print('Trigger ' + str(trigger) + ' sent')
+    except:
+        pass
+        print('Failed to send trigger ' + str(trigger))
+
+
+def init_com(address="COM3"):
+    """Creates and tests a serial port"""
+    global ser
+    try:
+        ser = serial.Serial()
+        ser.port = address
+        ser.baudrate = 115200
+        ser.open()
+        print('Serial port opened')
+    except:
+        pass
+        print('The serial port couldn\'t be opened')
+
+
+def send_triggert(trigger):
+    """Sends a trigger to the serial port"""
+    try:
+        ser.write((trigger).to_bytes(1, 'little'))
+        print('Trigger ' + str(trigger) + ' sent')
+    except:
+        pass
+        print('Failed to send trigger ' + str(trigger))
+
+
+def sleepy_trigger(trigger, latency=100):
+    send_triggert(trigger)
+    pygame.time.wait(latency)
+
+
+def close_com():
+    """Closes the serial port"""
+    try:
+        ser.close()
+        print('Serial port closed')
+    except:
+        pass
+        print('The serial port couldn\'t be closed')
+
+
+# Text Functions
+def setfonts():
+    """Sets font parameters"""
+    global bigchar, char, charnext
+    pygame.font.init()
+    font = join('media', 'Arial_Rounded_MT_Bold.ttf')
+    bigchar = pygame.font.Font(script_path/font, 96)
+    char = pygame.font.Font(script_path/font, 32)
+    charnext = pygame.font.Font(script_path/font, 24)
+
+
+def paragraph(text, key=None, no_foot=False, color=None, limit_time=0, row=None, is_clean=True):
+    """Organizes a text into a paragraph"""
+    if is_clean:
+        screen.fill(background)
+
+    if row == None:
+        row = center[1] - 20 * len(text)
+
+    if color == None:
+        color = char_color
+
+    # if text is a string, convert to list
+    if isinstance(text, str):
+        text = [text]
+
+    for line in text:
+        phrase = char.render(line, True, color)
+        phrasebox = phrase.get_rect(centerx=center[0], top=row)
+        screen.blit(phrase, phrasebox)
+        row += 40
+    if key != None:
+        if key == K_SPACE:
+            foot = u"Para continuar presione la tecla Espacio..."
+        elif key == K_RETURN:
+            foot = u"Para continuar presione la tecla ENTER..."
+    else:
+        foot = u"Responda con la fila superior de teclas de numéricas"
+    if no_foot:
+        foot = ""
+    nextpage = charnext.render(foot, True, charnext_color)
+    nextbox = nextpage.get_rect(left=15, bottom=resolution[1] - 15)
+    screen.blit(nextpage, nextbox)
+    pygame.display.flip()
+
+    if key != None or limit_time != 0:
+        wait(key, limit_time)
+
+
+# Program Functions
+def init():
+    """Init display and others"""
+    setfonts()
+    global screen, resolution, center, background, char_color, charnext_color, fix, fixbox
+    pygame.init()  # soluciona el error de inicializacion de pygame.time
+    pygame.display.init()
+    pygame.display.set_caption(test_name)
+    pygame.mouse.set_visible(False)
+    if FullScreenShow:
+        resolution = (pygame.display.Info().current_w,
+                      pygame.display.Info().current_h)
+        screen = pygame.display.set_mode(resolution, FULLSCREEN)
+    else:
+        try:
+            resolution = pygame.display.list_modes()[3]
+        except:
+            resolution = (1280, 720)
+        screen = pygame.display.set_mode(resolution)
+    center = (int(resolution[0] / 2), int(resolution[1] / 2))
+    background = Color('white')
+    char_color = Color('black')
+    charnext_color = Color('black')
+    fix = char.render('+', True, char_color)
+    fixbox = fix.get_rect(centerx=center[0], centery=center[1])
+    screen.fill(background)
+    pygame.display.flip()
+
+
+def blackscreen(blacktime=0):
+    """Erases the screen"""
+    screen.fill(background)
+    pygame.display.flip()
+    pygame.time.delay(blacktime)
+
+
+def ends():
+    """Closes the show"""
+    blackscreen()
+    dot = char.render('.', True, char_color)
+    dotbox = dot.get_rect(left=15, bottom=resolution[1] - 15)
+    screen.blit(dot, dotbox)
+    pygame.display.flip()
+    while True:
+        for evento in pygame.event.get():
+            if evento.type == KEYUP and evento.key == K_ESCAPE:
+                pygame_exit()
+
+
+def pygame_exit():
+    pygame.quit()
+    sys.exit()
+
+
+def wait(key, limit_time):
+    """Hold a bit"""
+
+    TIME_OUT_WAIT = USEREVENT + 1
+    if limit_time != 0:
+        pygame.time.set_timer(TIME_OUT_WAIT, limit_time, loops=1)
+
+    tw = pygame.time.get_ticks()
+
+    switch = True
+    while switch:
+        for event in pygame.event.get():
+            if event.type == QUIT or (event.type == KEYUP and event.key == K_ESCAPE):
+                pygame_exit()
+            elif event.type == KEYUP:
+                if event.key == key:
+                    switch = False
+            elif event.type == TIME_OUT_WAIT and limit_time != 0:
+                switch = False
+
+    pygame.time.set_timer(TIME_OUT_WAIT, 0)
+    pygame.event.clear()                    # CLEAR EVENTS
+
+    return (pygame.time.get_ticks() - tw)
+
+
+def image_in_center(picture, xdesv=0, ydesv=0):
+    center = [int(resolution[0] / 2) + xdesv, int(resolution[1] / 2) + ydesv]
+    return [x - picture.get_size()[count]/2 for count, x in enumerate(center)]
+
+
+def show_image(image, scale, grayscale=False):
+    screen.fill(background)
+    try:
+        picture = pygame.image.load(image)
+    except pygame.error as e:
+        print(f"Error al cargar imagen {image}: {e}") if debug_mode else None
+        return
+    
+    image_real_size = picture.get_size()
+    percentage = scale / image_real_size[0]
+    picture = pygame.transform.scale(picture, [int(scale), int(image_real_size[1]*percentage)])
+
+    # Convertir a blanco y negro si se requiere
+    if grayscale:
+        width, height = picture.get_size()
+        for x in range(width):
+            for y in range(height):
+                r, g, b, a = picture.get_at((x, y))
+                gray = int(0.299 * r + 0.587 * g + 0.114 * b)
+                picture.set_at((x, y), (gray, gray, gray, a))
+
+    screen.blit(picture, image_in_center(picture))
+    
+    pygame.display.flip()
+
+
+def wait_answer(image, testing = False, VKeyboardSelection="F", NKeyboardSelection="T"):
+    tw = pygame.time.get_ticks()
+    done = False
+    selected_answer = None
+    is_correct = None
+
+    while not done:
+        for event in pygame.event.get():
+
+            if event.type == KEYUP and event.key == K_ESCAPE and debug_mode:
+                pygame_exit()
+
+            elif event.type == KEYUP and event.key == K_v:
+                selected_answer = "Happy" if VKeyboardSelection == "F" else "Sad"
+                done = True
+            
+            elif event.type == KEYUP and event.key == K_n:
+                selected_answer = "Sad" if NKeyboardSelection == "T" else "Happy"
+                done = True
+
+    rt = pygame.time.get_ticks() - tw
+
+    # Se obtiene el path relativo de la imagen
+    relative_path = Path(image[0]).relative_to(script_path)
+
+    # Se divide el path relativo para obtener las carpetas que contienen la imagen
+    if (len(relative_path.parts) >= 3 and not testing):
+        image_type = relative_path.parts[2]
+        print(image_type) if debug_mode else None
+        print(selected_answer) if debug_mode else None
+
+        is_correct = selected_answer == image_type
+
+        print(is_correct) if debug_mode else None
+
+        #print(252 + (0 if image_type == "B" else 1)) if debug_mode else None
+        # sleepy_trigger(252 + (0 if image_type == "B" else 1) , lpt_address, trigger_latency) # user answer
+        
+    pygame.event.clear()                    # CLEAR EVENTS
+    return ({"rt": rt, "is_correct": is_correct, "selected_answer": selected_answer})
+
+def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VKeyboardSelection="F", NKeyboardSelection="T"):
+    phase_change = USEREVENT + 5
+    pygame.time.set_timer(phase_change, 500, loops=1)
+
+    done = False
+    count = 0
+
+    screen.fill(background)
+    pygame.display.flip()
+
+    answers_list = []
+
+    actual_phase = 1
+
+    while not done:
+        for event in pygame.event.get():
+            if event.type == KEYUP and event.key == K_ESCAPE and debug_mode:
+                pygame_exit()
+
+            elif event.type == KEYUP and event.key == K_p and debug_mode:
+                done = True
+
+            elif event.type == phase_change:
+                if actual_phase == 1:
+                    screen.fill(background)
+                    screen.blit(fix, fixbox)
+                    pygame.display.update(fixbox)
+                    pygame.display.flip()
+                    # sleepy_trigger(244, lpt_address, trigger_latency) # fixation
+                    pygame.time.set_timer(phase_change, 1000, loops=1)
+                    actual_phase = 2
+                elif actual_phase == 2:
+                    show_image(image_list[count][0], base_size, grayscale=True)
+                    paragraph(text_convertor[image_list[count][1]], key=None, no_foot=True, color=Color('blue'), limit_time=0, row=None, is_clean=False)
+                    # sleepy_trigger(240 + (0 if condition == "sham" else 1) + (4 if image_list[count].split('\\')[2] == "N" else 0), lpt_address, trigger_latency) # Exposure image trigger first
+                    # sleepy_trigger(int(image_list[count].split('\\')[3].split("_")[0]), lpt_address, trigger_latency) # image ID
+                    pygame.time.set_timer(phase_change, 200, loops=1)
+                    actual_phase = 3
+                elif actual_phase == 3:
+                    answer = wait_answer(image_list[count], practice, VKeyboardSelection="F", NKeyboardSelection="T")
+                    answers_list.append([image_list[count], answer])
+                    count += 1
+                    if count >= len(image_list):
+                        done = True
+                    
+                    screen.fill(background)
+                    pygame.display.flip()
+                    pygame.time.set_timer(phase_change, randint(1000, 1200), loops=1)
+                    actual_phase = 1
+
+    pygame.time.set_timer(phase_change, 0)
+
+    pygame.event.clear()                    # CLEAR EVENTS
+
+    # acá se almacenará la answers_list en el archivo dfile
+    if dfile is not None:
+        for answer in answers_list:
+            # Unir la lista con guiones en lugar de comas
+            answers_order = "-".join(answer[2])  # "Happy-Sad"
+            dfile.write("%s,%s,%s,%s,%s,%s,%s,%s\n" % (uid,
+                                                 answer[0].split('\\')[-1].split('.')[0],
+                                                    block,
+                                                    answer[1]['rt'],
+                                                    answer[0].split('\\')[2],
+                                                    answers_order,
+                                                    answer[1]['selected_answer'],
+                                                    int(answer[1]['is_correct']) if answer[1]['is_correct'] is not None else ""
+                                                 ))
+        dfile.flush()
+    else:
+        print("Error al cargar el archivo de datos")
+
+
+def fixation_image_list(fixation_time, fixation=True):
+
+    fixation_event = USEREVENT + 6
+    pygame.time.set_timer(fixation_event, fixation_time, loops=1)
+    done = False
+
+    screen.fill(background)
+    pygame.display.flip()
+    if fixation:
+        screen.blit(fix, fixbox)
+        pygame.display.update(fixbox)
+    pygame.display.flip()
+
+    tw = pygame.time.get_ticks()
+
+    while not done:
+        for event in pygame.event.get():
+            if event.type == KEYUP and event.key == K_ESCAPE:
+                pygame_exit()
+            elif event.type == KEYUP and event.key == K_p:
+                done = True
+
+            elif event.type == fixation_event:  # and pygame.time.get_ticks() - tw >= fixation_time
+                # if fixation:
+                    # sleepy_trigger(244, lpt_address, trigger_latency) # fixation
+                done = True
+                break
+
+    pygame.time.set_timer(fixation_event, 0)
+    pygame.event.clear()                    # CLEAR EVENTS
+
+# Main Function
+def main():
+    """Game's main loop"""
+
+    init_com()
+
+    # Si no existe la carpeta data se crea
+    if not os.path.exists(script_path/'data/'):
+        os.makedirs(script_path/'data/')
+
+    # Username = id_keyboardSelection_firstBlock
+    # keyboardSelection = V is F or T (feliz o triste), firstBlock = C or P (cara o palabra, que es lo que la persona debe identificar en el primer bloque)
+    # example: 4321_F_C sería un usuario con id 4321 el cual al presionar la V representa Feliz, el primer bloque es Cara y el segundo es Palabra
+
+    correct_sub_name = False
+    first_round = True
+
+    while not correct_sub_name:
+        os.system('cls')
+        if not first_round:
+            print("ID ingresado no cumple con las condiciones, contacte con el encargado...")
+
+        first_round = False
+        subj_name = input(
+            "Ingrese el ID del participante y presione ENTER para iniciar: ")
+        
+        print(len(subj_name.split("_")))
+        if not subj_name or subj_name.strip() == "" or len(subj_name.split("_")) != 3:
+            continue
+
+        uid = subj_name.split("_")[0].strip()
+        VKeyboardSelection = subj_name.split("_")[1].strip()
+        NKeyboardSelection = "T" if VKeyboardSelection == "F" else "F"
+        firstBlock = subj_name.split("_")[2].strip()
+        secondBlock = "C" if firstBlock == "P" else "P"
+
+        print(uid) if debug_mode else None
+        print(VKeyboardSelection) if debug_mode else None
+        print(firstBlock) if debug_mode else None
+
+        if VKeyboardSelection in ["F", "T"] and firstBlock in ["C", "P"]:
+            correct_sub_name = True
+    
+    print("Tecla Feliz: " + (VKeyboardSelection if subj_name.split("_")[1].strip() == "F" else NKeyboardSelection)) if debug_mode else None
+    print("Tecla Triste: " + (VKeyboardSelection if subj_name.split("_")[1].strip() == "T" else NKeyboardSelection)) if debug_mode else None
+    print("Primer bloque: " + ("Cara" if firstBlock == "C" else "Palabra")) if debug_mode else None
+    print("Segundo bloque: " + ("Palabra" if secondBlock == "C" else "Cara")) if debug_mode else None
+    
+    csv_name = date_name + '_' + subj_name + '.csv'
+    dfile = open(script_path/"data"/csv_name, 'w')
+    dfile.write("%s,%s,%s,%s,%s,%s,%s,%s\n" % ("Sujeto", "IdImagen", "Bloque", "TReaccion", "TipoImagen", "Palabra", "Respuesta", "Acierto"))
+    dfile.flush()
+
+    init()
+
+    send_triggert(start_trigger)
+
+    paragraph(select_slide('welcome'), key = K_SPACE)
+
+    # ------------------------ first block ------------------------
+
+    paragraph(select_slide('intro_block', variables= {"blockType": firstBlock, "happyV": True if VKeyboardSelection == "F" else False}), key = K_SPACE)
+    show_images(first_experiment_block, practice = False, uid=uid, dfile=dfile, block=1, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection)
+    # sleepy_trigger(240 + 1, lpt_address, trigger_latency) # block number
+
+    # ------------------------ second block ------------------------
+
+    paragraph(select_slide('Break', variables= {"blockType": secondBlock, "happyV": True if VKeyboardSelection == "F" else False}), key = K_SPACE, no_foot = True)
+    show_images(second_experiment_block, practice = False, uid=uid, dfile=dfile, block=2, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection)
+    # sleepy_trigger(240 + 1, lpt_address, trigger_latency) # block number
+
+    paragraph(select_slide('farewell'), key = K_SPACE, no_foot = True)
+    send_triggert(stop_trigger)
+    dfile.close()
+
+    close_com()
+    ends()
+
+
+# Experiment starts here...
+if __name__ == "__main__":
+    main()
