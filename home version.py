@@ -1,9 +1,6 @@
 #!/usr/bin/env python3.11
 # coding=utf-8
 
-# cosas que solucionar:
-# - la cantidad de imagenes es menor a la requerida, se necesitan 60 por cada condición por cada bloque, lo que hace un total de 120 imagenes de cada tipo, pero solo tenemos 85 happy y 56 sad
-
 """
 tested in Python 3.11
 """
@@ -61,14 +58,35 @@ start_trigger = 254
 stop_trigger = 255
 
 # Experiment Trigger list
-# 1-240: ID images, Ok
-# 241-243: Block ID's, Ok
-# 244: fixation, Ok
-# 250: Correct answer
-# 251: Incorrect answer
+
+# 001: Cruz de fijación
+# 011: Cara Feliz + Palabra Feliz
+# 012: Cara Triste + Palabra Triste
+# 021: Cara Feliz + Palabra Triste
+# 022: Cara Triste + Palabra Feliz
+# 100: Respuesta Correcta
+# 200: Respuesta Incorrecta
+# 250: Time-out (Sin respuesta)
+# 030: Estímulo Neutro (Opcional)
+# 051: Inicio bloque 1
+# 052: Inicio bloque 2
 
 # 254: Start experiment
 # 255: Stop experiment
+
+trigger_helper = {
+    "fixation": 1,
+    "happy_happy": 11,
+    "sad_sad": 12,
+    "happy_sad": 21,
+    "sad_happy": 22,
+    "correct_response": 100,
+    "incorrect_response": 200,
+    "no_response": 250,
+    "start_block_1": 51,
+    "start_block_2": 52,
+    "neutral_stimulus": 30
+}
 
 # Onscreen instructions
 def select_slide(slide_name, variables=None):
@@ -205,16 +223,17 @@ def paragraph(text, key=None, no_foot=False, color=None, limit_time=0, row=None,
     if is_clean:
         screen.fill(background)
 
-    if row == None:
-        row = center[1] - 20 * len(text)
-
-    if color == None:
-        color = char_color
-
     # if text is a string, convert to list
     if isinstance(text, str):
         text = [text]
 
+    if row == None:
+        row = center[1] - 20 * len(text)
+
+    if color == None:
+        color = char_color    
+
+    print(text) if debug_mode else None
     for line in text:
         phrase = char.render(line, True, color)
         phrasebox = phrase.get_rect(centerx=center[0], top=row)
@@ -349,11 +368,14 @@ def show_image(image, scale, grayscale=False):
     pygame.display.flip()
 
 
-def wait_answer(image, testing = False, VKeyboardSelection="F", NKeyboardSelection="T"):
+def wait_answer(image, testing = False, VKeyboardSelection = "F", NKeyboardSelection = "T", type_of_answer = "image"):
     tw = pygame.time.get_ticks()
     done = False
     selected_answer = None
     is_correct = None
+
+    next_image = USEREVENT + 4
+    pygame.time.set_timer(next_image, 1000, loops=1)
 
     while not done:
         for event in pygame.event.get():
@@ -369,6 +391,12 @@ def wait_answer(image, testing = False, VKeyboardSelection="F", NKeyboardSelecti
                 selected_answer = "Sad" if NKeyboardSelection == "T" else "Happy"
                 done = True
 
+            elif event.type == next_image:
+                selected_answer = "Missed"
+                done = True
+                break
+
+    pygame.time.set_timer(next_image, 0)
     rt = pygame.time.get_ticks() - tw
 
     # Se obtiene el path relativo de la imagen
@@ -377,11 +405,16 @@ def wait_answer(image, testing = False, VKeyboardSelection="F", NKeyboardSelecti
     # Se divide el path relativo para obtener las carpetas que contienen la imagen
     if (len(relative_path.parts) >= 3 and not testing):
         image_type = relative_path.parts[2]
-        print(image_type) if debug_mode else None
+        image_text = image[1]
+
+        if type_of_answer == "image":
+            print(image_type) if debug_mode else None
+            is_correct = selected_answer == image_type
+        elif type_of_answer == "word":
+            print(image_text) if debug_mode else None
+            is_correct = selected_answer == image_text
+            
         print(selected_answer) if debug_mode else None
-
-        is_correct = selected_answer == image_type
-
         print(is_correct) if debug_mode else None
 
         #print(252 + (0 if image_type == "B" else 1)) if debug_mode else None
@@ -391,7 +424,7 @@ def wait_answer(image, testing = False, VKeyboardSelection="F", NKeyboardSelecti
     return ({"rt": rt, "is_correct": is_correct, "selected_answer": selected_answer})
 
 def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VKeyboardSelection="F", NKeyboardSelection="T"):
-    phase_change = USEREVENT + 5
+    phase_change = USEREVENT + 2
     pygame.time.set_timer(phase_change, 500, loops=1)
 
     done = False
@@ -418,19 +451,41 @@ def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VK
                     screen.blit(fix, fixbox)
                     pygame.display.update(fixbox)
                     pygame.display.flip()
-                    # sleepy_trigger(244, lpt_address, trigger_latency) # fixation
+                    sleepy_trigger(1, lpt_address, trigger_latency) # fixation
                     pygame.time.set_timer(phase_change, 1000, loops=1)
                     actual_phase = 2
                 elif actual_phase == 2:
                     show_image(image_list[count][0], base_size, grayscale=True)
                     paragraph(text_convertor[image_list[count][1]], key=None, no_foot=True, color=Color('blue'), limit_time=0, row=None, is_clean=False)
-                    # sleepy_trigger(240 + (0 if condition == "sham" else 1) + (4 if image_list[count].split('\\')[2] == "N" else 0), lpt_address, trigger_latency) # Exposure image trigger first
+
+                    # Se verifica tipo de cara y palabra para enviar el trigger correspondiente
+                    relative_path = Path(image_list[count][0]).relative_to(script_path)
+                    image_type = relative_path.parts[2]  # Obtener la carpeta que contiene la imagen
+                    word_type = image_list[count][1]
+
+                    sleepy_trigger(
+                        trigger_helper[
+                            f"{'happy' if image_type == 'Happy' else 'sad'}_{'happy' if word_type == 'Happy' else 'sad'}"
+                        ],
+                        lpt_address,
+                        trigger_latency
+                    )  # Exposure image trigger first
+
                     # sleepy_trigger(int(image_list[count].split('\\')[3].split("_")[0]), lpt_address, trigger_latency) # image ID
                     pygame.time.set_timer(phase_change, 200, loops=1)
                     actual_phase = 3
                 elif actual_phase == 3:
-                    answer = wait_answer(image_list[count], practice, VKeyboardSelection="F", NKeyboardSelection="T")
+                    answer = wait_answer(image_list[count], practice, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection, type_of_answer = ("image" if block == 1 else "word"))
                     answers_list.append([image_list[count], answer])
+
+                    # Lanzamiento de trigger según la respuesta
+                    if answer['selected_answer'] == "Missed":
+                        sleepy_trigger(trigger_helper["no_response"], lpt_address, trigger_latency)
+                    elif answer['is_correct']:
+                        sleepy_trigger(trigger_helper["correct_response"], lpt_address, trigger_latency)
+                    else:
+                        sleepy_trigger(trigger_helper["incorrect_response"], lpt_address, trigger_latency)
+
                     count += 1
                     if count >= len(image_list):
                         done = True
@@ -448,16 +503,17 @@ def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VK
     if dfile is not None:
         for answer in answers_list:
             # Unir la lista con guiones en lugar de comas
-            answers_order = "-".join(answer[2])  # "Happy-Sad"
-            dfile.write("%s,%s,%s,%s,%s,%s,%s,%s\n" % (uid,
-                                                 answer[0].split('\\')[-1].split('.')[0],
+            dfile.write("%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % (uid,
+                                                    (Path(answer[0][0]).relative_to(script_path)).parts[-1].split('.')[0],
                                                     block,
                                                     answer[1]['rt'],
-                                                    answer[0].split('\\')[2],
-                                                    answers_order,
+                                                    (Path(answer[0][0]).relative_to(script_path)).parts[2],
+                                                    answer[0][1],
+                                                    "Cara" if block == 1 else "Palabra",
                                                     answer[1]['selected_answer'],
                                                     int(answer[1]['is_correct']) if answer[1]['is_correct'] is not None else ""
                                                  ))
+            #("Sujeto", "IdImagen", "Bloque", "TReaccion", "TipoImagen", "Palabra", "TipoRespuesta", "Respuesta", "Acierto"))
         dfile.flush()
     else:
         print("Error al cargar el archivo de datos")
@@ -465,7 +521,7 @@ def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VK
 
 def fixation_image_list(fixation_time, fixation=True):
 
-    fixation_event = USEREVENT + 6
+    fixation_event = USEREVENT + 3
     pygame.time.set_timer(fixation_event, fixation_time, loops=1)
     done = False
 
@@ -537,14 +593,14 @@ def main():
         if VKeyboardSelection in ["F", "T"] and firstBlock in ["C", "P"]:
             correct_sub_name = True
     
-    print("Tecla Feliz: " + (VKeyboardSelection if subj_name.split("_")[1].strip() == "F" else NKeyboardSelection)) if debug_mode else None
-    print("Tecla Triste: " + (VKeyboardSelection if subj_name.split("_")[1].strip() == "T" else NKeyboardSelection)) if debug_mode else None
+    print("Tecla Feliz: " + ("V" if subj_name.split("_")[1].strip() == "F" else "N")) if debug_mode else None
+    print("Tecla Triste: " + ("V" if subj_name.split("_")[1].strip() == "T" else "N")) if debug_mode else None
     print("Primer bloque: " + ("Cara" if firstBlock == "C" else "Palabra")) if debug_mode else None
-    print("Segundo bloque: " + ("Palabra" if secondBlock == "C" else "Cara")) if debug_mode else None
+    print("Segundo bloque: " + ("Palabra" if secondBlock == "P" else "Cara")) if debug_mode else None
     
     csv_name = date_name + '_' + subj_name + '.csv'
     dfile = open(script_path/"data"/csv_name, 'w')
-    dfile.write("%s,%s,%s,%s,%s,%s,%s,%s\n" % ("Sujeto", "IdImagen", "Bloque", "TReaccion", "TipoImagen", "Palabra", "Respuesta", "Acierto"))
+    dfile.write("%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ("Sujeto", "IdImagen", "Bloque", "TReaccion", "TipoImagen", "Palabra", "TipoRespuesta", "Respuesta", "Acierto"))
     dfile.flush()
 
     init()
@@ -556,14 +612,17 @@ def main():
     # ------------------------ first block ------------------------
 
     paragraph(select_slide('intro_block', variables= {"blockType": firstBlock, "happyV": True if VKeyboardSelection == "F" else False}), key = K_SPACE)
+
+    sleepy_trigger(51, lpt_address, trigger_latency) # block number
     show_images(first_experiment_block, practice = False, uid=uid, dfile=dfile, block=1, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection)
-    # sleepy_trigger(240 + 1, lpt_address, trigger_latency) # block number
+    
 
     # ------------------------ second block ------------------------
 
     paragraph(select_slide('Break', variables= {"blockType": secondBlock, "happyV": True if VKeyboardSelection == "F" else False}), key = K_SPACE, no_foot = True)
+
+    sleepy_trigger(52, lpt_address, trigger_latency) # block number
     show_images(second_experiment_block, practice = False, uid=uid, dfile=dfile, block=2, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection)
-    # sleepy_trigger(240 + 1, lpt_address, trigger_latency) # block number
 
     paragraph(select_slide('farewell'), key = K_SPACE, no_foot = True)
     send_triggert(stop_trigger)
