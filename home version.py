@@ -150,7 +150,7 @@ def select_slide(slide_name, variables=None):
             u"Cuando estés lista/o para continuar presiona la barra espaciadora."
         ],
         'farewell': [
-            u"El experimento ha terminado.",
+            u"La tarea ha finalizado.",
             "",
             u"Muchas gracias por su colaboración!!"
         ]
