@@ -92,7 +92,7 @@ trigger_helper = {
 def select_slide(slide_name, variables=None):
 
     if variables is None:
-        variables = {"block_number": 0, "practice": True}
+        variables = {"blockNumber": 0, "practice": True, "happyV": True, "blockType": "C"}
 
     basic_slides = {
         'welcome': [
@@ -112,19 +112,42 @@ def select_slide(slide_name, variables=None):
             u"Recuerda que luego de ver un rostro deberás categorizar su expresión emocional lo más rápido y preciso posible.",
             " ",
         ],
-        'intro_block': [
+        'face_block': [
             u"Ahora comenzaremos con el experimento.",
             " ",
-            u"Se le presentará una secuencia de caras con diferentes expresiones emocionales.",
-            u"Su tarea es categorizar la emoción de cada cara lo más rápido y preciso posible.",
+            u"En esta prueba vamos a ver una serie de fotografías de rostros de personas en la pantalla.", 
+            u"Notará que sobre cada rostro hay una palabra escrita en color rojo.",
+            u"" + ("Esta vez s" if variables["blockNumber"] == 2 else  "S") + "u tarea principal es identificar la emoción del rostro (si la persona está triste o feliz),",
+            u"ignorando por completo la palabra que está escrita encima. No intente leer la palabra, solo mire la cara.", 
+            u"Debe responder lo más rápido posible, siguiendo su primera impresión, pero intentando no cometer errores.",
+            u"No se detenga a analizar demasiado cada imagen; confíe en lo que perciba de inmediato.",
             " ",
+            u"Para responder, utilizaremos únicamente su mano derecha sobre el teclado. Por favor, coloque sus dedos así:",
+            " ",
+            u"El dedo índice sobre la tecla [V] para indicar " + ("FELIZ" if variables["happyV"] else "TRISTE") + ".",
+            u"El dedo medio sobre la tecla [N] para indicar " + ("TRISTE" if variables["happyV"] else "FELIZ") + ".",
+        ],
+        'word_block': [
+            u"Ahora comenzaremos con el experimento.",
+            " ",
+            u"En esta prueba vamos a ver una serie de fotografías de rostros de personas en la pantalla.", 
+            u"Notará que sobre cada rostro hay una palabra escrita en color rojo.",
+            u"" + ("Esta vez s" if variables["blockNumber"] == 2 else  "S") + "u tarea principal es responder usando la emoción que aparece escrita en la palabra, ignorando por completo la emoción",
+            u"que expresa el rostro (si la persona está triste o feliz). No intente descifrar la emoción en el rostro, sólo lea la palabra.", 
+            u"Debe responder lo más rápido posible, siguiendo su primera impresión, pero intentando no cometer errores.",
+            u"No se detenga a analizar demasiado cada imagen; confíe en lo que perciba de inmediato.",
+            " ",
+            u"Para responder, utilizaremos únicamente su mano derecha sobre el teclado. Por favor, coloque sus dedos así:",
+            " ",
+            u"El dedo índice sobre la tecla [V] para indicar " + ("FELIZ" if variables["happyV"] else "TRISTE") + ".",
+            u"El dedo medio sobre la tecla [N] para indicar " + ("TRISTE" if variables["happyV"] else "FELIZ") + ".",
         ],
         'Break': [
-            u"Puedes tomar un descanso.",
+            u"Fin del bloque " + variables["blockNumber"] + ".",
             " ",
-            u"Para el siguiente bloque tendrás que responder con la mano contraria.",
+            u"Tómate de 2 a 3 minutos para descansar.",
             " ",
-            u"Cuando te sientas listo para continuar presiona Espacio."
+            u"Cuando estés lista/o para continuar presiona la barra espaciadora."
         ],
         'farewell': [
             u"El experimento ha terminado.",
@@ -563,6 +586,7 @@ def main():
     # Username = id_keyboardSelection_firstBlock
     # keyboardSelection = V is F or T (feliz o triste), firstBlock = C or P (cara o palabra, que es lo que la persona debe identificar en el primer bloque)
     # example: 4321_F_C sería un usuario con id 4321 el cual al presionar la V representa Feliz, el primer bloque es Cara y el segundo es Palabra
+    # example: 4321_T_P sería un usuario con id 4321 el cual al presionar la V representa Triste, el primer bloque es Palabra y el segundo es Cara
 
     correct_sub_name = False
     first_round = True
@@ -611,18 +635,21 @@ def main():
 
     # ------------------------ first block ------------------------
 
-    paragraph(select_slide('intro_block', variables= {"blockType": firstBlock, "happyV": True if VKeyboardSelection == "F" else False}), key = K_SPACE)
+    paragraph(select_slide('word_block' if firstBlock == "P" else 'face_block', variables= {"blockType": firstBlock, "happyV": True if VKeyboardSelection == "F" else False, "blockNumber": 1}), key = K_SPACE)
 
     sleepy_trigger(51, lpt_address, trigger_latency) # block number
     show_images(first_experiment_block, practice = False, uid=uid, dfile=dfile, block=1, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection)
     
+    paragraph(select_slide('farewell', variables={"blockNumber": 1, "practice": False, "happyV": True, "blockType": "C"}), key = K_SPACE, no_foot = True)
 
     # ------------------------ second block ------------------------
 
-    paragraph(select_slide('Break', variables= {"blockType": secondBlock, "happyV": True if VKeyboardSelection == "F" else False}), key = K_SPACE, no_foot = True)
+    paragraph(select_slide('word_block' if secondBlock == "P" else 'face_block', variables= {"blockType": secondBlock, "happyV": True if VKeyboardSelection == "F" else False, "blockNumber": 2}), key = K_SPACE, no_foot = True)
 
     sleepy_trigger(52, lpt_address, trigger_latency) # block number
     show_images(second_experiment_block, practice = False, uid=uid, dfile=dfile, block=2, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection)
+
+    paragraph(select_slide('farewell', variables={"blockNumber": 2, "practice": False, "happyV": True, "blockType": "C"}), key = K_SPACE, no_foot = True)
 
     paragraph(select_slide('farewell'), key = K_SPACE, no_foot = True)
     send_triggert(stop_trigger)
