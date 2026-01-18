@@ -100,13 +100,13 @@ def select_slide(slide_name, variables=None):
             " ",
             u"Se te indicará paso a paso que hacer."
         ],
-        'Practice_1': [
+        'practice_1': [
             u"Empezaremos con una práctica para familiarizarnos con la tarea.",
             " ",
             u"Luego de ver un rostro deberás categorizar su expresión emocional lo más rápido y preciso posible.",
             " ",
         ],
-        'Practice_2': [
+        'practice_2': [
             u"Ahora haremos una segunda práctica.",
             " ",
             u"Recuerda que luego de ver un rostro deberás categorizar su expresión emocional lo más rápido y preciso posible.",
@@ -142,7 +142,7 @@ def select_slide(slide_name, variables=None):
             u"El dedo índice sobre la tecla [V] para indicar " + ("FELIZ" if variables["happyV"] else "TRISTE") + ".",
             u"El dedo medio sobre la tecla [N] para indicar " + ("TRISTE" if variables["happyV"] else "FELIZ") + ".",
         ],
-        'Break': [
+        'break': [
             u"Fin del bloque " + variables["blockNumber"] + ".",
             " ",
             u"Tómate de 2 a 3 minutos para descansar.",
@@ -640,7 +640,7 @@ def main():
     sleepy_trigger(51, lpt_address, trigger_latency) # block number
     show_images(first_experiment_block, practice = False, uid=uid, dfile=dfile, block=1, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection)
     
-    paragraph(select_slide('farewell', variables={"blockNumber": 1, "practice": False, "happyV": True, "blockType": "C"}), key = K_SPACE, no_foot = True)
+    paragraph(select_slide('break', variables={"blockNumber": 1, "practice": False, "happyV": True, "blockType": "C"}), key = K_SPACE, no_foot = True)
 
     # ------------------------ second block ------------------------
 
@@ -649,7 +649,7 @@ def main():
     sleepy_trigger(52, lpt_address, trigger_latency) # block number
     show_images(second_experiment_block, practice = False, uid=uid, dfile=dfile, block=2, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection)
 
-    paragraph(select_slide('farewell', variables={"blockNumber": 2, "practice": False, "happyV": True, "blockType": "C"}), key = K_SPACE, no_foot = True)
+    paragraph(select_slide('break', variables={"blockNumber": 2, "practice": False, "happyV": True, "blockType": "C"}), key = K_SPACE, no_foot = True)
 
     paragraph(select_slide('farewell'), key = K_SPACE, no_foot = True)
     send_triggert(stop_trigger)
