@@ -160,37 +160,6 @@ def select_slide(slide_name, variables=None):
 
 
 # EEG Functions
-def init_lpt(address):
-    """Creates and tests a parallell port"""
-    try:
-        from ctypes import windll
-        global io
-        io = windll.dlportio  # requires dlportio.dll !!!
-        print('Parallel port opened')
-    except:
-        pass
-        print("Oops!", sys.exc_info(), "occurred.")
-        print('The parallel port couldn\'t be opened')
-    try:
-        io.DlPortWritePortUchar(address, 0)
-        print('Parallel port set to zero')
-    except:
-        pass
-        print('Failed to send initial zero trigger!')
-
-
-def send_trigger(trigger, address, latency):
-    """Sends a trigger to the parallell port"""
-    try:
-        io.DlPortWritePortUchar(address, trigger)  # Send trigger
-        pygame.time.delay(latency)  # Keep trigger pulse for some ms
-        io.DlPortWritePortUchar(address, 0)  # Get back to zero after some ms
-        print('Trigger ' + str(trigger) + ' sent')
-    except:
-        pass
-        print('Failed to send trigger ' + str(trigger))
-
-
 def init_com(address="COM3"):
     """Creates and tests a serial port"""
     global ser
@@ -474,7 +443,7 @@ def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VK
                     screen.blit(fix, fixbox)
                     pygame.display.update(fixbox)
                     pygame.display.flip()
-                    sleepy_trigger(1, lpt_address, trigger_latency) # fixation
+                    sleepy_trigger(1, trigger_latency) # fixation
                     pygame.time.set_timer(phase_change, 1000, loops=1)
                     actual_phase = 2
                 elif actual_phase == 2:
@@ -490,7 +459,6 @@ def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VK
                         trigger_helper[
                             f"{'happy' if image_type == 'Happy' else 'sad'}_{'happy' if word_type == 'Happy' else 'sad'}"
                         ],
-                        lpt_address,
                         trigger_latency
                     )  # Exposure image trigger first
 
@@ -503,11 +471,11 @@ def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VK
 
                     # Lanzamiento de trigger según la respuesta
                     if answer['selected_answer'] == "Missed":
-                        sleepy_trigger(trigger_helper["no_response"], lpt_address, trigger_latency)
+                        sleepy_trigger(trigger_helper["no_response"], trigger_latency)
                     elif answer['is_correct']:
-                        sleepy_trigger(trigger_helper["correct_response"], lpt_address, trigger_latency)
+                        sleepy_trigger(trigger_helper["correct_response"], trigger_latency)
                     else:
-                        sleepy_trigger(trigger_helper["incorrect_response"], lpt_address, trigger_latency)
+                        sleepy_trigger(trigger_helper["incorrect_response"], trigger_latency)
 
                     count += 1
                     if count >= len(image_list):
@@ -517,6 +485,7 @@ def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VK
                     pygame.display.flip()
                     pygame.time.set_timer(phase_change, randint(1000, 1200), loops=1)
                     actual_phase = 1
+                    break
 
     pygame.time.set_timer(phase_change, 0)
 
@@ -622,7 +591,7 @@ def main():
     print("Primer bloque: " + ("Cara" if firstBlock == "C" else "Palabra")) if debug_mode else None
     print("Segundo bloque: " + ("Palabra" if secondBlock == "P" else "Cara")) if debug_mode else None
     
-    csv_name = date_name + '_' + subj_name + '.csv'
+    csv_name = subj_name + '_' + date_name + '.csv'
     dfile = open(script_path/"data"/csv_name, 'w')
     dfile.write("%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ("Sujeto", "IdImagen", "Bloque", "TReaccion", "TipoImagen", "Palabra", "TipoRespuesta", "Respuesta", "Acierto"))
     dfile.flush()
@@ -637,7 +606,7 @@ def main():
 
     paragraph(select_slide('word_block' if firstBlock == "P" else 'face_block', variables= {"blockType": firstBlock, "happyV": True if VKeyboardSelection == "F" else False, "blockNumber": 1}), key = K_SPACE)
 
-    sleepy_trigger(51, lpt_address, trigger_latency) # block number
+    sleepy_trigger(51, trigger_latency) # block number
     show_images(first_experiment_block, practice = False, uid=uid, dfile=dfile, block=1, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection)
     
     paragraph(select_slide('break', variables={"blockNumber": 1, "practice": False, "happyV": True, "blockType": "C"}), key = K_SPACE, no_foot = True)
@@ -646,7 +615,7 @@ def main():
 
     paragraph(select_slide('word_block' if secondBlock == "P" else 'face_block', variables= {"blockType": secondBlock, "happyV": True if VKeyboardSelection == "F" else False, "blockNumber": 2}), key = K_SPACE, no_foot = True)
 
-    sleepy_trigger(52, lpt_address, trigger_latency) # block number
+    sleepy_trigger(52, trigger_latency) # block number
     show_images(second_experiment_block, practice = False, uid=uid, dfile=dfile, block=2, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection)
 
     paragraph(select_slide('break', variables={"blockNumber": 2, "practice": False, "happyV": True, "blockType": "C"}), key = K_SPACE, no_foot = True)
