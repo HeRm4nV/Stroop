@@ -116,7 +116,7 @@ def select_slide(slide_name, variables=None):
             u"Ahora comenzaremos con el experimento.",
             " ",
             u"En esta prueba vamos a ver una serie de fotografías de rostros de personas en la pantalla.", 
-            u"Notará que sobre cada rostro hay una palabra escrita en color rojo.",
+            u"Notará que sobre cada rostro hay una palabra escrita en color azul.",
             u"" + ("Esta vez s" if variables["blockNumber"] == 2 else  "S") + "u tarea principal es identificar la emoción del rostro (si la persona está triste o feliz),",
             u"ignorando por completo la palabra que está escrita encima. No intente leer la palabra, solo mire la cara.", 
             u"Debe responder lo más rápido posible, siguiendo su primera impresión, pero intentando no cometer errores.",
@@ -131,7 +131,7 @@ def select_slide(slide_name, variables=None):
             u"Ahora comenzaremos con el experimento.",
             " ",
             u"En esta prueba vamos a ver una serie de fotografías de rostros de personas en la pantalla.", 
-            u"Notará que sobre cada rostro hay una palabra escrita en color rojo.",
+            u"Notará que sobre cada rostro hay una palabra escrita en color azul.",
             u"" + ("Esta vez s" if variables["blockNumber"] == 2 else  "S") + "u tarea principal es responder usando la emoción que aparece escrita en la palabra, ignorando por completo la emoción",
             u"que expresa el rostro (si la persona está triste o feliz). No intente descifrar la emoción en el rostro, sólo lea la palabra.", 
             u"Debe responder lo más rápido posible, siguiendo su primera impresión, pero intentando no cometer errores.",
@@ -143,7 +143,7 @@ def select_slide(slide_name, variables=None):
             u"El dedo medio sobre la tecla [N] para indicar " + ("TRISTE" if variables["happyV"] else "FELIZ") + ".",
         ],
         'break': [
-            u"Fin del bloque " + variables["blockNumber"] + ".",
+            u"Fin del bloque " + str(variables["blockNumber"]) + ".",
             " ",
             u"Tómate de 2 a 3 minutos para descansar.",
             " ",
@@ -210,7 +210,7 @@ def setfonts():
     charnext = pygame.font.Font(script_path/font, 24)
 
 
-def paragraph(text, key=None, no_foot=False, color=None, limit_time=0, row=None, is_clean=True):
+def paragraph(text, key=None, no_foot=False, color=None, limit_time=0, row=None, is_clean=True, size="medium"):
     """Organizes a text into a paragraph"""
     if is_clean:
         screen.fill(background)
@@ -227,7 +227,10 @@ def paragraph(text, key=None, no_foot=False, color=None, limit_time=0, row=None,
 
     print(text) if debug_mode else None
     for line in text:
-        phrase = char.render(line, True, color)
+        if size == "big":
+            phrase = bigchar.render(line, True, color)
+        else:
+            phrase = char.render(line, True, color)
         phrasebox = phrase.get_rect(centerx=center[0], top=row)
         screen.blit(phrase, phrasebox)
         row += 40
@@ -415,7 +418,7 @@ def wait_answer(image, testing = False, VKeyboardSelection = "F", NKeyboardSelec
     pygame.event.clear()                    # CLEAR EVENTS
     return ({"rt": rt, "is_correct": is_correct, "selected_answer": selected_answer})
 
-def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VKeyboardSelection="F", NKeyboardSelection="T"):
+def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VKeyboardSelection="F", NKeyboardSelection="T", block_type="image"):
     phase_change = USEREVENT + 2
     pygame.time.set_timer(phase_change, 500, loops=1)
 
@@ -466,7 +469,7 @@ def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VK
                     pygame.time.set_timer(phase_change, 200, loops=1)
                     actual_phase = 3
                 elif actual_phase == 3:
-                    answer = wait_answer(image_list[count], practice, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection, type_of_answer = ("image" if block == 1 else "word"))
+                    answer = wait_answer(image_list[count], practice, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection, type_of_answer = block_type)
                     answers_list.append([image_list[count], answer])
 
                     # Lanzamiento de trigger según la respuesta
@@ -607,7 +610,7 @@ def main():
     paragraph(select_slide('word_block' if firstBlock == "P" else 'face_block', variables= {"blockType": firstBlock, "happyV": True if VKeyboardSelection == "F" else False, "blockNumber": 1}), key = K_SPACE)
 
     sleepy_trigger(51, trigger_latency) # block number
-    show_images(first_experiment_block, practice = False, uid=uid, dfile=dfile, block=1, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection)
+    show_images(first_experiment_block, practice = False, uid=uid, dfile=dfile, block=1, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection, block_type=('word' if firstBlock == "P" else 'image'))
     
     paragraph(select_slide('break', variables={"blockNumber": 1, "practice": False, "happyV": True, "blockType": "C"}), key = K_SPACE, no_foot = True)
 
@@ -616,7 +619,7 @@ def main():
     paragraph(select_slide('word_block' if secondBlock == "P" else 'face_block', variables= {"blockType": secondBlock, "happyV": True if VKeyboardSelection == "F" else False, "blockNumber": 2}), key = K_SPACE, no_foot = True)
 
     sleepy_trigger(52, trigger_latency) # block number
-    show_images(second_experiment_block, practice = False, uid=uid, dfile=dfile, block=2, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection)
+    show_images(second_experiment_block, practice = False, uid=uid, dfile=dfile, block=2, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection, block_type=('word' if secondBlock == "P" else 'image'))
 
     paragraph(select_slide('break', variables={"blockNumber": 2, "practice": False, "happyV": True, "blockType": "C"}), key = K_SPACE, no_foot = True)
 
