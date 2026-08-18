@@ -14,7 +14,7 @@ from pathlib import Path
 
 script_path = Path(__file__).parent.resolve()
 
-debug_mode = True # Modo de depuración (True/False)
+debug_mode = False # Modo de depuración (True/False)
 
 class TextRectException(Exception):
     def __init__(self, message=None):
@@ -577,9 +577,9 @@ def main():
             continue
 
         uid = subj_name.split("_")[0].strip()
-        VKeyboardSelection = subj_name.split("_")[1].strip()
+        VKeyboardSelection = subj_name.split("_")[1].strip().upper()
         NKeyboardSelection = "T" if VKeyboardSelection == "F" else "F"
-        firstBlock = subj_name.split("_")[2].strip()
+        firstBlock = subj_name.split("_")[2].strip().upper()
         secondBlock = "C" if firstBlock == "P" else "P"
 
         print(uid) if debug_mode else None
