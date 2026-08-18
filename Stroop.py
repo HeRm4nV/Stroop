@@ -358,10 +358,14 @@ def show_image(image, scale, grayscale=False):
                 gray = int(0.299 * r + 0.587 * g + 0.114 * b)
                 picture.set_at((x, y), (gray, gray, gray, a))
 
-    screen.blit(picture, image_in_center(picture))
-    
-    pygame.display.flip()
+    image_area = screen.blit(picture, image_in_center(picture))
 
+    square, sq_pos = pygame.Surface((50, 50)), (resolution[0] - 50, resolution[1] - 50)
+    square.fill((0, 0, 0))
+
+    black_square = screen.blit(square, sq_pos)
+    
+    pygame.display.update([image_area, black_square])
 
 def wait_answer(image, testing = False, VKeyboardSelection = "F", NKeyboardSelection = "T", type_of_answer = "image"):
     tw = pygame.time.get_ticks()
