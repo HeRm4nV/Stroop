@@ -576,7 +576,6 @@ def main():
         subj_name = input(
             "Ingrese el ID del participante y presione ENTER para iniciar: ")
         
-        print(len(subj_name.split("_")))
         if not subj_name or subj_name.strip() == "" or len(subj_name.split("_")) != 3:
             continue
 
