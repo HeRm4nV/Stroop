@@ -28,6 +28,9 @@ FullScreenShow = True  # Pantalla completa automáticamente al iniciar el experi
 test_name = "Stroop Task"
 date_name = strftime("%Y-%m-%d_%H-%M-%S", gmtime())
 
+# Puerto de comunicación para triggers (ajustar según el sistema)
+serial_port = "COM5"  # Cambiar según el puerto de comunicación del sistema
+
 # Image Loading
 happy_images_list = [script_path/"media"/"images"/"Happy"/ f for f in os.listdir(
     script_path/"media"/"images"/"Happy") if isfile(join(script_path/"media"/"images"/"Happy", f))]
@@ -553,7 +556,7 @@ def fixation_image_list(fixation_time, fixation=True):
 def main():
     """Game's main loop"""
 
-    init_com()
+    init_com(address=serial_port)
 
     # Si no existe la carpeta data se crea
     if not os.path.exists(script_path/'data/'):
