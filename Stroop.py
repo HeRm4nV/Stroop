@@ -610,7 +610,7 @@ def main():
     print("Primer bloque: " + ("Cara" if firstBlock == "C" else "Palabra")) if debug_mode else None
     print("Segundo bloque: " + ("Palabra" if secondBlock == "P" else "Cara")) if debug_mode else None
     
-    csv_name = subj_name + ("_pre" if condition_input == 1 else "post") + '_Stroop_' + date_name + '.csv'
+    csv_name = subj_name + ("_pre" if condition_input == "1" else "_post") + '_Stroop_' + date_name + '.csv'
     dfile = open(script_path/"data"/csv_name, 'w')
     dfile.write("%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % ("Sujeto", "IdImagen", "Bloque", "TReaccion", "TipoImagen", "Palabra", "TipoRespuesta", "Respuesta", "Acierto"))
     dfile.flush()
