@@ -7,14 +7,19 @@ tested in Python 3.11
 import csv, pygame, sys, os, serial
 from pygame.locals import FULLSCREEN, USEREVENT, KEYUP, K_SPACE, K_RETURN, K_ESCAPE, QUIT, Color, K_p, K_v, K_n
 from os.path import isfile, join
-from random import randint, shuffle
+from random import randint, shuffle, choice
 from time import gmtime, strftime
 
 from pathlib import Path
 
 script_path = Path(__file__).parent.resolve()
 
-debug_mode = False # Modo de depuración (True/False)
+debug_mode = True # Modo de depuración (True/False)
+auto_trigger_answer = True # Responder automáticamente a las imágenes (True/False)
+
+if debug_mode:
+    import faulthandler
+    faulthandler.enable()
 
 class TextRectException(Exception):
     def __init__(self, message=None):
@@ -252,7 +257,10 @@ def paragraph(text, key=None, no_foot=False, color=None, limit_time=0, row=None,
     pygame.display.flip()
 
     if key != None or limit_time != 0:
-        wait(key, limit_time)
+        if auto_trigger_answer and debug_mode:
+            pygame.time.wait(randint(300, 500))  # Simular tiempo de reacción aleatorio
+        else:
+            wait(key, limit_time)
 
 
 # Program Functions
@@ -299,6 +307,9 @@ def ends():
     screen.blit(dot, dotbox)
     pygame.display.flip()
     while True:
+        if auto_trigger_answer and debug_mode:
+            pygame.time.wait(randint(3000, 5000))  # Simular tiempo de reacción aleatorio
+            pygame_exit()
         for evento in pygame.event.get():
             if evento.type == KEYUP and evento.key == K_ESCAPE:
                 pygame_exit()
@@ -380,7 +391,22 @@ def wait_answer(image, testing = False, VKeyboardSelection = "F", NKeyboardSelec
     next_image = USEREVENT + 4
     pygame.time.set_timer(next_image, 1000, loops=1)
 
+    missed_auto_answer = False
+
+    print("Waiting for answer...") if debug_mode else None
+
     while not done:
+
+        if auto_trigger_answer and not missed_auto_answer:
+            selected_answer = ("Missed" if randint(0, 10) == 0 else ("Sad" if randint(1, 10) <= 5 else "Happy"))
+            print(f"Auto-selected answer: {selected_answer}") if debug_mode else None
+
+            if selected_answer == "Missed":
+                missed_auto_answer = True
+            else:
+                pygame.time.wait(randint(300, 500))  # Simular tiempo de reacción aleatorio
+                done = True
+
         for event in pygame.event.get():
 
             if event.type == KEYUP and event.key == K_ESCAPE and debug_mode:
@@ -397,10 +423,12 @@ def wait_answer(image, testing = False, VKeyboardSelection = "F", NKeyboardSelec
             elif event.type == next_image:
                 selected_answer = "Missed"
                 done = True
-                break
+                missed_auto_answer = False
 
     pygame.time.set_timer(next_image, 0)
     rt = pygame.time.get_ticks() - tw
+
+    print(f"Selected answer: {selected_answer}, Reaction time: {rt} ms") if debug_mode else None
 
     # Se obtiene el path relativo de la imagen
     relative_path = Path(image[0]).relative_to(script_path)
@@ -457,6 +485,7 @@ def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VK
                     pygame.display.flip()
                     sleepy_trigger(1, trigger_latency) # fixation
                     pygame.time.set_timer(phase_change, 1000, loops=1)
+                    print("End of phase 1") if debug_mode else None
                     actual_phase = 2
                 elif actual_phase == 2:
                     show_image(image_list[count][0], base_size, grayscale=True)
@@ -467,6 +496,9 @@ def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VK
                     image_type = relative_path.parts[2]  # Obtener la carpeta que contiene la imagen
                     word_type = image_list[count][1]
 
+                    print(f"Image type: {image_type}, Word type: {word_type}") if debug_mode else None
+                    print("Showing image " + str(image_list[count][0]).split("\\")[-1]) if debug_mode else None
+
                     sleepy_trigger(
                         trigger_helper[
                             f"{'happy' if image_type == 'Happy' else 'sad'}_{'happy' if word_type == 'Happy' else 'sad'}"
@@ -476,6 +508,7 @@ def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VK
 
                     # sleepy_trigger(int(image_list[count].split('\\')[3].split("_")[0]), lpt_address, trigger_latency) # image ID
                     pygame.time.set_timer(phase_change, 200, loops=1)
+                    print("End of phase 2") if debug_mode else None
                     actual_phase = 3
                 elif actual_phase == 3:
                     answer = wait_answer(image_list[count], practice, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection, type_of_answer = block_type)
@@ -578,8 +611,12 @@ def main():
             print("ID ingresado no cumple con las condiciones, contacte con el encargado...")
 
         first_round = False
-        subj_name = input(
-            "Ingrese el ID del participante y presione ENTER para iniciar: ")
+
+        if not auto_trigger_answer:
+            subj_name = input(
+                "Ingrese el ID del participante y presione ENTER para iniciar: ")
+        else:
+            subj_name = choice(["Testing_F_C", "Testing_T_P"])  # Valor por defecto para pruebas automáticas
         
         if not subj_name or subj_name.strip() == "" or len(subj_name.split("_")) != 3:
             continue
@@ -601,7 +638,10 @@ def main():
     print("1. Registro previo a dosificación")
     print("2. Registro posterior a dosificación")
 
-    condition_input = input("Ingrese el número de la condición (1 o 2): ")
+    if auto_trigger_answer:
+        condition_input = choice(["1", "2"])  # Valor por defecto para pruebas automáticas
+    else:
+        condition_input = input("Ingrese el número de la condición (1 o 2): ")
     while condition_input not in ["1", "2"]:
         print("Número de condición inválido. Por favor, ingrese 1 o 2.")
         condition_input = input("Ingrese el número de la condición (1 o 2): ")
@@ -647,6 +687,7 @@ def main():
 
     close_com()
     ends()
+
 
 # Experiment starts here...
 if __name__ == "__main__":
