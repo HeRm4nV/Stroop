@@ -14,7 +14,7 @@ from pathlib import Path
 
 script_path = Path(__file__).parent.resolve()
 
-debug_mode = False # Modo de depuración (True/False)
+debug_mode = True # Modo de depuración (True/False)
 
 class TextRectException(Exception):
     def __init__(self, message=None):
@@ -22,6 +22,11 @@ class TextRectException(Exception):
 
     def __str__(self):
         return self.message
+
+
+if debug_mode:
+    import faulthandler
+    faulthandler.enable()
 
 # Configurations:
 FullScreenShow = True  # Pantalla completa automáticamente al iniciar el experimento
