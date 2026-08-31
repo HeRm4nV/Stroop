@@ -639,8 +639,6 @@ def main():
     sleepy_trigger(52, trigger_latency) # block number
     show_images(second_experiment_block, practice = False, uid=uid, dfile=dfile, block=2, VKeyboardSelection=VKeyboardSelection, NKeyboardSelection=NKeyboardSelection, block_type=('word' if secondBlock == "P" else 'image'))
 
-    paragraph(select_slide('break', variables={"blockNumber": 2, "practice": False, "happyV": True, "blockType": "C"}), key = K_SPACE, no_foot = True)
-
     paragraph(select_slide('farewell'), key = K_SPACE, no_foot = True)
     send_triggert(stop_trigger)
     dfile.close()
