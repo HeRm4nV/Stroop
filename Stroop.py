@@ -518,7 +518,7 @@ def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VK
                                                     answer[1]['rt'],
                                                     (Path(answer[0][0]).relative_to(script_path)).parts[2],
                                                     answer[0][1],
-                                                    "Cara" if block == 1 else "Palabra",
+                                                    "Cara" if block_type == "image" else "Palabra",
                                                     answer[1]['selected_answer'],
                                                     int(answer[1]['is_correct']) if answer[1]['is_correct'] is not None else ""
                                                  ))
