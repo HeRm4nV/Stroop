@@ -213,7 +213,7 @@ def setfonts():
     global bigchar, char, charnext
     pygame.font.init()
     font = join('media', 'Arial_Rounded_MT_Bold.ttf')
-    bigchar = pygame.font.Font(script_path/font, 96)
+    bigchar = pygame.font.Font(script_path/font, 64)
     char = pygame.font.Font(script_path/font, 32)
     charnext = pygame.font.Font(script_path/font, 24)
 
@@ -465,7 +465,7 @@ def show_images(image_list, practice=False, uid=None, dfile=None, block=None, VK
                     actual_phase = 2
                 elif actual_phase == 2:
                     show_image(image_list[count][0], base_size, grayscale=True)
-                    paragraph(text_convertor[image_list[count][1]], key=None, no_foot=True, color=Color('blue'), limit_time=0, row=None, is_clean=False)
+                    paragraph(text_convertor[image_list[count][1]], key=None, no_foot=True, color=Color('blue'), limit_time=0, row=center[1] + 1 * len(text_convertor[image_list[count][1]]), is_clean=False, size="big")
 
                     # Se verifica tipo de cara y palabra para enviar el trigger correspondiente
                     relative_path = Path(image_list[count][0]).relative_to(script_path)
@@ -612,8 +612,8 @@ def main():
         condition_input = input("Ingrese el número de la condición (1 o 2): ")
 
     
-    print("Tecla Feliz: " + ("V" if subj_name.split("_")[1].strip() == "F" else "N")) if debug_mode else None
-    print("Tecla Triste: " + ("V" if subj_name.split("_")[1].strip() == "T" else "N")) if debug_mode else None
+    print("Tecla Feliz: " + ("V" if VKeyboardSelection == "F" else "N")) if debug_mode else None
+    print("Tecla Triste: " + ("V" if VKeyboardSelection == "T" else "N")) if debug_mode else None
     print("Primer bloque: " + ("Cara" if firstBlock == "C" else "Palabra")) if debug_mode else None
     print("Segundo bloque: " + ("Palabra" if secondBlock == "P" else "Cara")) if debug_mode else None
     
