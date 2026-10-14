@@ -23,7 +23,6 @@ class TextRectException(Exception):
     def __str__(self):
         return self.message
 
-
 if debug_mode:
     import faulthandler
     faulthandler.enable()
@@ -186,10 +185,10 @@ def send_triggert(trigger):
     """Sends a trigger to the serial port"""
     try:
         ser.write((trigger).to_bytes(1, 'little'))
-        print('Trigger ' + str(trigger) + ' sent')
+        print('Trigger ' + str(trigger) + ' sent') if debug_mode else None
     except:
         pass
-        print('Failed to send trigger ' + str(trigger))
+        print('Failed to send trigger ' + str(trigger)) if debug_mode else None
 
 
 def sleepy_trigger(trigger, latency=100):
