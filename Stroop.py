@@ -23,8 +23,9 @@ class TextRectException(Exception):
     def __str__(self):
         return self.message
 
-import faulthandler
-faulthandler.enable()
+if debug_mode:
+    import faulthandler
+    faulthandler.enable()
 
 # Configurations:
 FullScreenShow = True  # Pantalla completa automáticamente al iniciar el experimento
