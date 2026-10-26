@@ -120,7 +120,7 @@ def select_slide(slide_name, variables=None):
             " ",
         ],
         'face_block': [
-            u"" + ("Ahora comenzaremos con el experimento." if variables["blockNumber"] == 2 else  "Ahora comenzaremos con el segundo bloque del experimento."),
+            u"" + ("Ahora comenzaremos con el segundo bloque del experimento." if variables["blockNumber"] == 2 else  "Ahora comenzaremos con el experimento."),
             " ",
             u"En esta prueba vamos a ver una serie de fotografías de rostros de personas en la pantalla.", 
             u"Notará que sobre cada rostro hay una palabra escrita en color azul.",
